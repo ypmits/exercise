@@ -1,5 +1,7 @@
 # PROMISE EXPLAINED
 
+First read this README.md then go to [EXERCISE.md](./EXERCISE.md)
+
 First thing first **WHAT ARE PROMISES**
 
 When searching in google and typing in "what are promises javascript" you get this awnser.
