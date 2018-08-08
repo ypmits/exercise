@@ -154,7 +154,7 @@ function startPreloading()
 			for (var i = 0; i < e.length; i++) {
 				promises.push(new ImageItem(i, e[i]).startAnimating(null));
 			}
-			Promise.all(promises).then((e)=>{
+			Promise.all(promises).then(()=>{
 				console.log("Done animating everything (quickly)!");
 			});
 		}
@@ -168,7 +168,7 @@ function startPreloading()
 function animateImageItem(imgNum, e)
 {
 	var imageItem = new ImageItem(imgNum, e[imgNum], false);
-	imageItem.startAnimating(null, .3).then(()=>{
+	imageItem.startAnimating(undefined, .3).then(()=>{
 		imgNum++;
 		if(imgNum != images.length)
 		{
