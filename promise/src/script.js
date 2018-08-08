@@ -16,8 +16,8 @@ var ImagesPreloader = function(imageStrings)
 				resolve({url,status:'ok'})
 				this.images = this;
 			};
-			img.onerror = ()=>{
-				resolve({url,status:'error'})
+			img.onerror = (e)=>{
+				resolve({url,status:'error',error:e})
 			};
 			img.src = url;
 		}))
@@ -32,14 +32,15 @@ var ImagesPreloader = function(imageStrings)
 
 
 
-var ImageItem = function(id, obj)
+var ImageItem = function(id, obj, useDelay = true)
 {
 	this.promise = null;
 	this.id = id;
+	this.useDelay = useDelay;
 	this.img = null;
 	this.size = {width:50, height:50};
 	if(obj.status == "ok")
-	{	
+	{
 		this.img = document.createElement("img");
 		this.img.width = this.size.width;
 		this.img.height = this.size.height;
@@ -54,26 +55,36 @@ var ImageItem = function(id, obj)
 	}
 }
 
-ImageItem.prototype.animate = function()
+ImageItem.prototype.startAnimating = function(resolve, duration = .6)
 {
-	return new Promise((resolve, reject) => {
-		var duration = .6;
-		var tl = new TimelineMax(
-			{
-				onComplete:()=>{
-					// this.img.style = ""; // Reset the style of the element:
-					this.img.remove(); // Removes the element:
-					resolve();
-				}
-			});
-		tl.add( TweenLite.to(this.img, duration, {right:"0", y:"0", scale:3, delay:this.id*.05, ease:"easeInSine"}) );
-		tl.add( TweenLite.to(this.img, duration, {right:"0", bottom:"0", scale:.5, ease:"linear"}) );
-		tl.add( TweenLite.to(this.img, duration, {left:"0", bottom:"0", scale:2, ease:"linear"}) );
-		tl.add( TweenLite.to(this.img, duration, {x:"0", top:"0", scale:1, ease:"easeOutSine"}) );
-		tl.add( TweenLite.to(this.img, duration, {xPercent:-50, yPercent:-50, left:"50%", top:"50%", scale:.1, ease:"easeOutSine"}) );
-		tl.add( TweenLite.to(this.img, duration, {opacity:0, scale:5, ease:"easeInOutSine"}) );
-	});
+	return this.subAnimate(duration, {right:0, top:0, delay:this.useDelay ? this.id*.05 : 0, ease:"easeInSine"})
+        .then(() => {
+			return this.subAnimate(duration, {right:0, top:"100%", scale:5, ease:"linear"});
+		})
+        .then(() => {
+            return this.subAnimate(duration, {left:0, bottom:0, scale:1, ease:"linear"});
+        })
+        .then(() => {
+            return this.subAnimate(duration, {left:0, top:0, ease:"easeOutSine"});
+        })
+        .then(() => {
+            return this.subAnimate(duration, {xPercent:-50, yPercent:-50, left:"50%", top:"50%", scale:.1, ease:"easeInOutSine"});
+        })
+        .then(() => {
+            return this.subAnimate(duration, {opacity:0, scale:5, ease:"easeInOutSine"}).onComplete(resolve);
+		})
+        .catch((error) => {
+		}
+	);
 }
+ImageItem.prototype.subAnimate = function(duration, obj)
+{
+	return new Promise(((resolve)=>{
+		obj.onComplete = resolve;
+		TweenLite.to(this.img, duration, obj);
+	}));
+}
+
 
 
 
@@ -122,17 +133,48 @@ var images = [
 ];
 
 window.onload = (e)=>{
+	startPreloading();
+}
+
+var preloader;
+var imgNum = 0;
+function startPreloading()
+{
 	// When the page is loaded start preloading the images:
-	new ImagesPreloader(images).then((e)=>{
-		// When all the imgages are loaded lets go through them
-		// and make a 'new ImageItem()' and put the imagestring inside them (e[i])
-		var promises = [];
+	preloader = new ImagesPreloader(images).then((e)=>{
 		console.log("All images preloaded!");
-		for (var i = 0; i < e.length; i++) {
-			promises.push(new ImageItem(i, e[i]).animate());
+
+		var imgNum = 0;
+		var doAllTogether = true;
+		if(doAllTogether)
+		{
+			// When all the imgages are loaded lets go through them
+			// and make a 'new ImageItem()' and put the imagestring inside them (e[i])
+			var promises = [];
+			for (var i = 0; i < e.length; i++) {
+				promises.push(new ImageItem(i, e[i]).startAnimating(null));
+			}
+			Promise.all(promises).then((e)=>{
+				console.log("Done animating everything (quickly)!");
+			});
 		}
-		Promise.all(promises).then((e)=>{
-			console.log("Done animating everything!");
-		});
+		else
+		{
+			animateImageItem(imgNum, e);
+		}
+	});
+}
+
+function animateImageItem(imgNum, e)
+{
+	var imageItem = new ImageItem(imgNum, e[imgNum], false);
+	imageItem.startAnimating(null, .3).then(()=>{
+		imgNum++;
+		if(imgNum != images.length)
+		{
+			animateImageItem(imgNum, e);
+		} else {
+			console.log("Done animating everything (slowly)!");
+		}
 	});
 }
